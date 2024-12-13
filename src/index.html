@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Room Clone</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <script src="game/core/GameState.js"></script>
+    <script src="game/core/GameLoop.js"></script>
+    <script src="game/core/SkillSystem.js"></script>
+    <script src="game/systems/BuildingSystem.js"></script>
+    <script src="game/systems/QuestSystem.js"></script>
+    <script src="game/systems/ActionSystem.js"></script>
+    <script src="game/ui/GameUI.js"></script>
+    <script src="game/Game.js"></script>
+    <script>
+        window.addEventListener('load', () => {
+            window.game = new Game();
+        });
+    </script>
+</body>
+</html> 
