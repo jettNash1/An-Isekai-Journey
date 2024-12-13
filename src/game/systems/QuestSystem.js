@@ -2,67 +2,74 @@ class QuestSystem {
     static QUESTS = {
         firstSettlement: {
             id: 'firstSettlement',
-            title: 'Establish First Settlement',
-            description: 'Build a hut to house new villagers',
-            objectives: {
-                buildings: { hut: 1 }
-            },
-            rewards: {
-                resources: { food: 50, wood: 50 },
-                unlocks: ['woodcutter']
+            name: 'First Settlement',
+            description: 'Build a shelter to survive the night',
+            objectives: [
+                {
+                    id: 'gather_wood',
+                    description: 'Gather 15 wood',
+                    isComplete: (gameState) => gameState.resources.wood >= 15,
+                    completed: false
+                },
+                {
+                    id: 'build_hut',
+                    description: 'Build a hut',
+                    isComplete: (gameState) => gameState.buildings.some(b => b.type === 'hut'),
+                    completed: false
+                }
+            ],
+            reward: (gameState) => {
+                gameState.addMessage('Your settlement has begun! Time to expand...');
+                // Add the next quest
+                gameState.questLog.push({ ...QuestSystem.QUESTS.establishProduction });
             }
         },
-        woodWorking: {
-            id: 'woodWorking',
-            title: 'Master of Wood',
-            description: 'Reach level 5 in woodcutting',
-            objectives: {
-                skills: { woodcutting: 5 }
-            },
-            rewards: {
-                resources: { wood: 100 },
-                unlocks: ['sawmill']
+        
+        establishProduction: {
+            id: 'establishProduction',
+            name: 'Establish Production',
+            description: 'Set up basic resource production',
+            objectives: [
+                {
+                    id: 'build_woodcutter',
+                    description: 'Build a Woodcutter\'s Lodge',
+                    isComplete: (gameState) => gameState.buildings.some(b => b.type === 'woodcutter_lodge'),
+                    completed: false
+                },
+                {
+                    id: 'build_gathering',
+                    description: 'Build a Gathering Hut',
+                    isComplete: (gameState) => gameState.buildings.some(b => b.type === 'gathering_hut'),
+                    completed: false
+                }
+            ],
+            reward: (gameState) => {
+                gameState.addMessage('Your settlement can now produce its own resources!');
+                gameState.resources.food += 10;
+                gameState.resources.herbs += 5;
             }
         }
     };
 
-    static checkQuestCompletion(gameState, quest) {
-        const objectives = quest.objectives;
+    static checkQuestProgress(gameState) {
+        gameState.questLog.forEach(quest => {
+            if (quest.completed) return;
 
-        if (objectives.buildings) {
-            for (const [building, count] of Object.entries(objectives.buildings)) {
-                const built = gameState.buildings.filter(b => b.type === building).length;
-                if (built < count) return false;
+            // Check each objective
+            let allComplete = true;
+            quest.objectives.forEach(objective => {
+                if (!objective.completed && objective.isComplete(gameState)) {
+                    objective.completed = true;
+                    gameState.addMessage(`Objective completed: ${objective.description}`);
+                }
+                if (!objective.completed) allComplete = false;
+            });
+
+            // Don't automatically complete the quest anymore
+            // Just update the UI to show it's ready for completion
+            if (allComplete && !quest.completed) {
+                gameState.addMessage(`${quest.name} is ready to complete!`);
             }
-        }
-
-        if (objectives.skills) {
-            for (const [skill, level] of Object.entries(objectives.skills)) {
-                if (gameState.skills[skill].level < level) return false;
-            }
-        }
-
-        return true;
-    }
-
-    static completeQuest(gameState, questId) {
-        const quest = this.QUESTS[questId];
-        if (!quest) return false;
-
-        // Add rewards
-        if (quest.rewards.resources) {
-            for (const [resource, amount] of Object.entries(quest.rewards.resources)) {
-                gameState.resources[resource] = (gameState.resources[resource] || 0) + amount;
-            }
-        }
-
-        if (quest.rewards.unlocks) {
-            gameState.unlockedActions.push(...quest.rewards.unlocks);
-        }
-
-        // Remove from active quests
-        gameState.questLog = gameState.questLog.filter(q => q.id !== questId);
-        
-        return true;
+        });
     }
 } 

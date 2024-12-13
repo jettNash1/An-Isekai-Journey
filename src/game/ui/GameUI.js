@@ -9,12 +9,10 @@ class GameUI {
         this.createMainContainer();
         this.createResourcePanel();
         this.createActionPanel();
-        this.createBuildingPanel();
+        this.createCraftingPanel();
         this.createSkillPanel();
         this.createQuestPanel();
         this.createMessageLog();
-        this.createInventoryPanel();
-        this.createEquipmentPanel();
         this.startUpdateLoop();
     }
 
@@ -23,19 +21,50 @@ class GameUI {
         container.id = 'game-container';
         container.className = 'game-container';
         document.body.appendChild(container);
+        this.gameContainer = container;
     }
 
     startUpdateLoop() {
-        setInterval(() => this.updateUI(), 100);
+        // Initial update
+        this.updateAll();
+        
+        // Fast updates for smooth progress bars (60fps)
+        const progressInterval = 1000 / 60; // ~16.7ms for 60fps
+        setInterval(() => {
+            this.updateActionProgress();
+        }, progressInterval);
+
+        // Regular updates for resources and other panels
+        setInterval(() => {
+            this.updateResourceDisplay();
+        }, 100); // 10 times per second
+
+        // Slower updates for non-critical panels
+        setInterval(() => {
+            this.updateSkills();
+            this.updateCraftingPanel();
+            this.updateQuestPanel();
+        }, 1000);
     }
 
-    updateUI() {
-        this.updateResources();
+    updateAll() {
+        this.updateResourceDisplay();
         this.updateSkills();
-        this.updateBuildings();
-        this.updateQuests();
-        this.updateInventoryPanel();
-        this.updateEquipmentPanel();
+        this.updateCraftingPanel();
+        this.updateQuestPanel();
+        this.updateActionPanel();
+    }
+
+    updateActionProgress() {
+        if (!this.gameState.currentAction) return;
+        
+        const actionId = this.gameState.currentAction.id;
+        const progress = ActionSystem.getActionProgress(this.gameState, actionId);
+        
+        const progressOverlay = document.querySelector(`.action-button[data-action="${actionId}"] .progress-overlay`);
+        if (progressOverlay) {
+            progressOverlay.style.width = `${progress * 100}%`;
+        }
     }
 
     createResourcePanel() {
@@ -52,18 +81,27 @@ class GameUI {
         const panel = document.createElement('div');
         panel.className = 'action-panel';
         panel.innerHTML = `
-            <h2>Actions</h2>
-            <div id="action-list"></div>
+            <div class="section">
+                <h2 class="panel-header">Actions</h2>
+                <div id="action-list"></div>
+            </div>
+            <div class="section">
+                <h2 class="panel-header">Quests</h2>
+                <div id="quest-list"></div>
+            </div>
         `;
         this.gameContainer.appendChild(panel);
+        
+        // Remove the separate quest panel creation
+        this.createQuestPanel = () => {}; // Empty function to prevent errors
     }
 
-    createBuildingPanel() {
+    createCraftingPanel() {
         const panel = document.createElement('div');
-        panel.className = 'building-panel';
+        panel.className = 'crafting-panel';
         panel.innerHTML = `
-            <h2>Buildings</h2>
-            <div id="building-list"></div>
+            <h2>Crafting</h2>
+            <div id="crafting-list"></div>
         `;
         this.gameContainer.appendChild(panel);
     }
@@ -97,59 +135,37 @@ class GameUI {
         this.gameContainer.appendChild(log);
     }
 
-    createInventoryPanel() {
-        const panel = document.createElement('div');
-        panel.className = 'inventory-panel';
-        panel.innerHTML = `
-            <h2>Inventory</h2>
-            <div class="inventory-stats">
-                <span class="weight"></span>
-                <span class="slots"></span>
-            </div>
-            <div id="inventory-grid"></div>
-        `;
-        this.gameContainer.appendChild(panel);
-    }
-
-    createEquipmentPanel() {
-        const panel = document.createElement('div');
-        panel.className = 'equipment-panel';
-        panel.innerHTML = `
-            <h2>Equipment</h2>
-            <div class="equipment-slots">
-                <div class="equipment-slot" data-slot="head">
-                    <div class="slot-label">Head</div>
-                </div>
-                <div class="equipment-slot" data-slot="chest">
-                    <div class="slot-label">Chest</div>
-                </div>
-                <div class="equipment-slot" data-slot="legs">
-                    <div class="slot-label">Legs</div>
-                </div>
-                <div class="equipment-slot" data-slot="feet">
-                    <div class="slot-label">Feet</div>
-                </div>
-                <div class="equipment-slot" data-slot="mainHand">
-                    <div class="slot-label">Main Hand</div>
-                </div>
-                <div class="equipment-slot" data-slot="offHand">
-                    <div class="slot-label">Off Hand</div>
-                </div>
-            </div>
-            <div class="character-stats"></div>
-        `;
-        this.gameContainer.appendChild(panel);
-    }
-
     updateResources() {
         const resourceList = document.getElementById('resource-list');
-        resourceList.innerHTML = Object.entries(this.gameState.resources)
-            .map(([resource, amount]) => `
-                <div class="resource-item">
-                    <span class="resource-name">${resource}</span>
-                    <span class="resource-amount">${Math.floor(amount)}</span>
+        const mainResources = [
+            { name: 'Wood', key: 'wood' },
+            { name: 'Stone', key: 'stone' },
+            { name: 'Food', key: 'food' },
+            { name: 'Population', key: 'population' },
+            { name: 'Energy', key: 'energy' },
+            { name: 'Cloth', key: 'cloth' },
+            { name: 'Leather', key: 'leather' },
+            { name: 'Metal', key: 'metal' },
+            { name: 'Herbs', key: 'herbs' },
+            { name: 'Mana crystals', key: 'mana_crystals' },
+            { name: 'Mana', key: 'mana' }
+        ];
+
+        resourceList.innerHTML = mainResources
+            .map(resource => `
+                <div class="resource-item" data-name="${resource.name}">
+                    <div class="resource-icon">${ResourceIcons[resource.key] || ''}</div>
+                    <span class="resource-amount">${Math.floor(this.gameState.resources[resource.key] || 0)}</span>
                 </div>
             `).join('');
+    }
+
+    formatResourceName(resource) {
+        // Convert camelCase or snake_case to Title Case
+        return resource
+            .replace(/_/g, ' ')
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase());
     }
 
     updateSkills() {
@@ -173,9 +189,19 @@ class GameUI {
 
     updateActionPanel() {
         const actionList = document.getElementById('action-list');
+        if (!actionList) {
+            console.error("Action list element not found!");
+            return;
+        }
+        
         actionList.innerHTML = this.gameState.unlockedActions
             .map(actionId => {
                 const action = ActionSystem.ACTIONS[actionId];
+                if (!action) {
+                    console.error(`Action not found: ${actionId}`);
+                    return '';
+                }
+                
                 const canPerform = ActionSystem.canPerformAction(this.gameState, actionId);
                 const inProgress = ActionSystem.isActionInProgress(this.gameState, actionId);
                 const progress = ActionSystem.getActionProgress(this.gameState, actionId);
@@ -185,18 +211,17 @@ class GameUI {
                         <div class="action-info">
                             <h3>${action.name}</h3>
                             <p>${action.description}</p>
-                            ${inProgress ? `
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${progress * 100}%"></div>
-                                </div>
-                            ` : ''}
                         </div>
                         <button 
-                            onclick="game.performAction('${actionId}')"
+                            onclick="window.game.performAction('${actionId}')"
                             ${canPerform && !inProgress ? '' : 'disabled'}
                             class="action-button"
+                            data-action="${actionId}"
                         >
-                            ${inProgress ? 'In Progress' : 'Perform'}
+                            <div class="progress-overlay" style="width: ${progress * 100}%"></div>
+                            <span class="button-text">
+                                ${inProgress ? 'In Progress...' : 'Perform'}
+                            </span>
                         </button>
                     </div>
                 `;
@@ -205,128 +230,102 @@ class GameUI {
 
     updateQuestPanel() {
         const questList = document.getElementById('quest-list');
+        if (!questList) return;
+
         questList.innerHTML = this.gameState.questLog
-            .map(quest => `
-                <div class="quest-item">
-                    <h3>${quest.title}</h3>
-                    <p>${quest.description}</p>
-                    <div class="quest-objectives">
-                        ${this.renderQuestObjectives(quest)}
+            .map(quest => {
+                const allObjectivesComplete = quest.objectives.every(obj => obj.completed);
+                const questStatus = quest.completed ? 'completed' : (allObjectivesComplete ? 'ready' : '');
+                
+                return `
+                    <div class="quest-item ${questStatus}">
+                        <h3>${quest.name}</h3>
+                        <p>${quest.description}</p>
+                        <div class="quest-objectives">
+                            ${quest.objectives.map(obj => `
+                                <div class="objective ${obj.completed ? 'completed' : ''}"
+                                     data-objective="${obj.id}">
+                                    ${obj.description}
+                                </div>
+                            `).join('')}
+                        </div>
+                        ${!quest.completed && allObjectivesComplete ? `
+                            <button 
+                                class="quest-complete-button"
+                                onclick="window.game.completeQuest('${quest.id}')"
+                            >
+                                Complete Quest
+                            </button>
+                        ` : ''}
                     </div>
+                `;
+            }).join('');
+    }
+
+    updateCraftingPanel() {
+        const craftingList = document.getElementById('crafting-list');
+        if (!craftingList) return;
+
+        // Get available buildings that can be crafted
+        const availableBuildings = this.gameState.unlockedBuildings
+            .map(buildingId => {
+                const building = BuildingSystem.BUILDINGS[buildingId];
+                if (!building) return '';
+
+                const canBuild = BuildingSystem.canBuild(this.gameState, buildingId);
+                const costText = Object.entries(building.cost)
+                    .map(([resource, amount]) => `${resource}: ${amount}`)
+                    .join(', ');
+
+                return `
+                    <div class="crafting-item ${canBuild ? '' : 'disabled'}">
+                        <div class="crafting-info">
+                            <h3>${building.name}</h3>
+                            <p>${building.description}</p>
+                            <div class="crafting-cost">Cost: ${costText}</div>
+                        </div>
+                        <button 
+                            onclick="window.game.buildStructure('${buildingId}')"
+                            ${canBuild ? '' : 'disabled'}
+                        >
+                            Build
+                        </button>
+                    </div>
+                `;
+            })
+            .join('');
+
+        craftingList.innerHTML = availableBuildings || '<p>No buildings available to craft yet.</p>';
+    }
+
+    renderResourceItem(resource) {
+        const icon = ResourceIcons[resource.key] || '';
+        return `
+            <div class="resource-item">
+                ${icon ? `<div class="resource-icon">${icon}</div>` : ''}
+                <span class="resource-name">${resource.name}</span>
+                <span class="resource-amount">${Math.floor(resource.amount)}</span>
+            </div>
+        `;
+    }
+
+    updateResourceDisplay() {
+        const resourceList = document.getElementById('resource-list');
+        if (!resourceList) return;
+
+        const resources = [
+            { key: 'wood', name: 'Wood' },
+            { key: 'stone', name: 'Stone' },
+            { key: 'food', name: 'Food' },
+            { key: 'energy', name: 'Energy' }
+        ];
+
+        resourceList.innerHTML = resources
+            .map(resource => `
+                <div class="resource-item" data-name="${resource.name}">
+                    <div class="resource-icon">${ResourceIcons[resource.key]}</div>
+                    <span class="resource-amount">${Math.floor(this.gameState.resources[resource.key] || 0)}</span>
                 </div>
             `).join('');
-    }
-
-    renderQuestObjectives(quest) {
-        let html = '';
-        if (quest.objectives.buildings) {
-            for (const [building, count] of Object.entries(quest.objectives.buildings)) {
-                const built = this.gameState.buildings.filter(b => b.type === building).length;
-                html += `<div class="objective ${built >= count ? 'complete' : ''}">
-                    Build ${count} ${BuildingSystem.BUILDINGS[building].name}: ${built}/${count}
-                </div>`;
-            }
-        }
-        return html;
-    }
-
-    updateInventoryPanel() {
-        const inventoryGrid = document.getElementById('inventory-grid');
-        const weight = InventorySystem.getInventoryWeight(this.gameState);
-        const slots = `${this.gameState.inventory.length}/${this.gameState.inventorySize}`;
-
-        document.querySelector('.inventory-stats .weight').textContent = 
-            `Weight: ${weight}/${this.gameState.stats.carryCapacity}`;
-        document.querySelector('.inventory-stats .slots').textContent = 
-            `Slots: ${slots}`;
-
-        const storageBonus = InventorySystem.calculateTotalInventorySize(this.gameState) - 
-            InventorySystem.DEFAULT_INVENTORY_SIZE;
-        
-        document.querySelector('.inventory-stats').innerHTML += `
-            <span class="storage-bonus">Storage Bonus: +${storageBonus}</span>
-        `;
-
-        // Show equipped storage items
-        if (this.gameState.equipment.storage?.length > 0) {
-            const storageSection = document.createElement('div');
-            storageSection.className = 'storage-items';
-            storageSection.innerHTML = `
-                <h3>Storage Items</h3>
-                ${this.gameState.equipment.storage.map(item => `
-                    <div class="storage-item" style="color: ${ItemSystem.RARITY[item.rarity].color}">
-                        <span>${item.name}</span>
-                        <span>+${item.storageBonus} slots</span>
-                        <button onclick="game.unequipStorageItem('${item.id}')">Unequip</button>
-                    </div>
-                `).join('')}
-            `;
-            document.querySelector('.inventory-panel').appendChild(storageSection);
-        }
-
-        inventoryGrid.innerHTML = this.gameState.inventory
-            .map(item => this.renderInventoryItem(item))
-            .join('');
-    }
-
-    updateEquipmentPanel() {
-        const slots = document.querySelectorAll('.equipment-slot');
-        slots.forEach(slot => {
-            const slotName = slot.dataset.slot;
-            const equippedItem = this.gameState.getEquippedItemInSlot(slotName);
-            
-            slot.innerHTML = `
-                <div class="slot-label">${slotName}</div>
-                ${equippedItem ? this.renderEquippedItem(equippedItem) : ''}
-            `;
-        });
-
-        const stats = this.gameState.getTotalStats();
-        document.querySelector('.character-stats').innerHTML = 
-            this.renderCharacterStats(stats);
-    }
-
-    renderInventoryItem(item) {
-        return `
-            <div class="inventory-item" data-item-id="${item.id}" 
-                style="color: ${ItemSystem.RARITY[item.rarity].color}">
-                <div class="item-icon ${item.type}"></div>
-                <div class="item-info">
-                    <div class="item-name">${item.name}</div>
-                    ${item.storageBonus ? `<div class="item-bonus">+${item.storageBonus} slots</div>` : ''}
-                    ${item.stackable ? `<div class="item-count">x${item.stackSize}</div>` : ''}
-                </div>
-                ${item.equipable ? `
-                    <button onclick="game.equipItem('${item.id}')" class="equip-button">
-                        ${item.type === 'storage' ? 'Use' : 'Equip'}
-                    </button>
-                ` : ''}
-            </div>
-        `;
-    }
-
-    renderEquippedItem(item) {
-        return `
-            <div class="equipped-item" data-item-id="${item.id}">
-                <div class="item-icon ${item.type}"></div>
-                <div class="item-info">
-                    <div class="item-name">${item.name}</div>
-                </div>
-                <button onclick="game.unequipItem('${item.slot}')" class="unequip-button">
-                    Unequip
-                </button>
-            </div>
-        `;
-    }
-
-    renderCharacterStats(stats) {
-        return `
-            <div class="stat-list">
-                <div class="stat">Health: ${stats.health}/${stats.maxHealth}</div>
-                <div class="stat">Armor: ${stats.armor}</div>
-                <div class="stat">Damage: ${stats.damage}</div>
-                <div class="stat">Magic Power: ${stats.magicPower}</div>
-            </div>
-        `;
     }
 } 

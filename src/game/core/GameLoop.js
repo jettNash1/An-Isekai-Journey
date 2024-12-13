@@ -1,54 +1,51 @@
 class GameLoop {
     constructor(gameState) {
         this.gameState = gameState;
-        this.tickRate = 100; // 10 ticks per second
-        this.running = false;
+        this.lastTick = Date.now();
+        this.accumulatedTime = 0;
+        this.tickRate = 1000 / 60; // 60fps for smooth updates
     }
 
     start() {
-        if (this.running) return;
-        this.running = true;
-        this.tick();
+        // Use requestAnimationFrame for smoother updates
+        this.frameId = requestAnimationFrame(() => this.loop());
     }
 
     stop() {
-        this.running = false;
+        if (this.frameId) {
+            cancelAnimationFrame(this.frameId);
+        }
     }
 
-    tick() {
-        if (!this.running) return;
-
+    loop() {
         const now = Date.now();
-        const delta = (now - this.gameState.lastTick) / 1000;
-        this.gameState.lastTick = now;
+        const deltaTime = now - this.lastTick;
+        this.lastTick = now;
 
-        this.processResources(delta);
-        this.processBuildings(delta);
-        this.checkTriggers();
+        this.accumulatedTime += deltaTime;
 
-        requestAnimationFrame(() => this.tick());
-    }
-
-    processResources(delta) {
-        // Process automatic resource generation
-        for (const building of this.gameState.buildings) {
-            if (building.produces) {
-                const amount = building.produces.amount * delta;
-                this.gameState.resources[building.produces.resource] += amount;
-            }
+        // Process updates at a fixed time step
+        while (this.accumulatedTime >= this.tickRate) {
+            this.tick(this.tickRate / 1000); // Convert to seconds
+            this.accumulatedTime -= this.tickRate;
         }
+
+        // Schedule next frame
+        this.frameId = requestAnimationFrame(() => this.loop());
     }
 
-    processBuildings(delta) {
-        // Process building effects
-        for (const building of this.gameState.buildings) {
-            if (building.effect) {
-                building.effect(this.gameState, delta);
+    tick(deltaTime) {
+        // Process building production
+        this.gameState.buildings.forEach(building => {
+            const buildingData = BuildingSystem.BUILDINGS[building.type];
+            if (buildingData.produces) {
+                Object.entries(buildingData.produces).forEach(([resource, amount]) => {
+                    this.gameState.resources[resource] = (this.gameState.resources[resource] || 0) + amount * deltaTime;
+                });
             }
-        }
-    }
+        });
 
-    checkTriggers() {
-        // Check for story triggers and unlock conditions
+        // Check quest progress
+        QuestSystem.checkQuestProgress(this.gameState);
     }
 } 

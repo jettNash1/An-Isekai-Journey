@@ -7,17 +7,30 @@
     <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
+    <!-- Load core systems first -->
     <script src="game/core/GameState.js"></script>
     <script src="game/core/GameLoop.js"></script>
     <script src="game/core/SkillSystem.js"></script>
+    
+    <!-- Load game systems -->
+    <script src="game/systems/ActionSystem.js"></script>
     <script src="game/systems/BuildingSystem.js"></script>
     <script src="game/systems/QuestSystem.js"></script>
-    <script src="game/systems/ActionSystem.js"></script>
+    <script src="game/systems/InventorySystem.js"></script>
+    
+    <!-- Load UI components -->
+    <script src="game/ui/ResourceIcons.js"></script>
     <script src="game/ui/GameUI.js"></script>
+    
+    <!-- Load main game class -->
     <script src="game/Game.js"></script>
+    
     <script>
         window.addEventListener('load', () => {
-            window.game = new Game();
+            if (!window.game) {
+                window.game = new Game();
+                window.game.start();
+            }
         });
     </script>
 </body>

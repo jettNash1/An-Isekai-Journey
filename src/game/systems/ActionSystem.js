@@ -1,210 +1,113 @@
 class ActionSystem {
     static ACTIONS = {
-        'gather wood': {
+        gather_wood: {
             name: 'Gather Wood',
             description: 'Gather wood from nearby trees',
-            duration: 3, // seconds
-            energyCost: 1,
-            location: 'town', // or 'exploration'
+            duration: 3000,
             skillGain: {
                 woodcutting: 1
             },
             resources: {
                 wood: (gameState) => {
                     const baseAmount = 1;
-                    const skillBonus = (gameState.skills.woodcutting.level - 1) * 0.1;
-                    return baseAmount * (1 + skillBonus);
+                    const skillBonus = ((gameState.skills.woodcutting?.level || 1) - 1) * 0.1;
+                    const buildingBonus = gameState.woodGatheringBonus || 0;
+                    return Math.floor(baseAmount * (1 + skillBonus + buildingBonus));
                 }
             }
         },
-        'mine stone': {
-            name: 'Mine Stone',
-            description: 'Mine stone from nearby rocks',
-            duration: 4,
-            energyCost: 2,
+        gather_herbs: {
+            name: 'Gather Herbs',
+            description: 'Search the forest for medicinal herbs',
+            duration: 4000,
             skillGain: {
-                mining: 1
+                gathering: 1
             },
             resources: {
-                stone: (gameState) => {
+                herbs: (gameState) => {
                     const baseAmount = 1;
-                    const skillBonus = (gameState.skills.mining.level - 1) * 0.1;
-                    return baseAmount * (1 + skillBonus);
-                }
-            },
-            requirements: {
-                skills: {
-                    mining: 1
+                    const skillBonus = ((gameState.skills.gathering?.level || 1) - 1) * 0.1;
+                    return Math.floor(baseAmount * (1 + skillBonus));
                 }
             }
         },
-        'forage food': {
+        gather_food: {
             name: 'Forage for Food',
-            description: 'Search the forest for edible plants and berries',
-            duration: 5,
-            energyCost: 2,
+            description: 'Search for edible plants and small game',
+            duration: 4000,
             skillGain: {
-                farming: 1
+                gathering: 1
             },
             resources: {
                 food: (gameState) => {
-                    const baseAmount = 1;
-                    const skillBonus = (gameState.skills.farming.level - 1) * 0.1;
-                    return baseAmount * (1 + skillBonus);
+                    const baseAmount = 2;
+                    const skillBonus = ((gameState.skills.gathering?.level || 1) - 1) * 0.1;
+                    return Math.floor(baseAmount * (1 + skillBonus));
                 }
             }
         },
-        'train combat': {
-            name: 'Combat Training',
-            description: 'Practice combat techniques',
-            duration: 6,
-            energyCost: 3,
+        gather_wood_faster: {
+            name: 'Gather Wood Faster',
+            description: 'More efficient wood gathering',
+            duration: 5000,
             skillGain: {
-                combat: 2
-            },
-            requirements: {
-                buildings: ['barracks']
-            }
-        },
-        'craft tools': {
-            name: 'Craft Tools',
-            description: 'Create basic tools to improve efficiency',
-            duration: 8,
-            energyCost: 4,
-            cost: {
-                wood: 10,
-                stone: 5
-            },
-            skillGain: {
-                crafting: 2
-            },
-            effect: (gameState) => {
-                gameState.resources.tools = (gameState.resources.tools || 0) + 1;
-            },
-            requirements: {
-                skills: { crafting: 2 }
-            }
-        },
-        // Training Actions
-        basic_training: {
-            name: 'Basic Combat Training',
-            description: 'Practice basic combat techniques',
-            duration: 10,
-            energyCost: 5,
-            requirements: {
-                buildings: ['training_ground']
-            },
-            skillGain: {
-                melee: 2,
-                defense: 1
-            },
-            modifiers: (gameState) => {
-                const trainingGround = gameState.buildings.find(b => 
-                    b.type === 'training_ground');
-                return trainingGround ? trainingGround.trainingBonus : 1;
-            }
-        },
-
-        train_others: {
-            name: 'Train Villagers',
-            description: 'Train villagers in basic combat, earning money and experience',
-            duration: 20,
-            energyCost: 8,
-            requirements: {
-                buildings: ['training_ground'],
-                skills: {
-                    melee: 10,
-                    defense: 5
-                }
+                woodcutting: 2
             },
             resources: {
-                gold: (gameState) => {
-                    const baseGold = 5;
-                    const skillBonus = (gameState.skills.melee.level - 10) * 0.2;
-                    return Math.floor(baseGold * (1 + skillBonus));
+                wood: (gameState) => {
+                    const baseAmount = 3;
+                    const skillBonus = ((gameState.skills.woodcutting?.level || 1) - 1) * 0.1;
+                    const buildingBonus = gameState.woodGatheringBonus || 0;
+                    return Math.floor(baseAmount * (1 + skillBonus + buildingBonus));
                 }
             },
-            skillGain: {
-                melee: 3,
-                defense: 2
+            requirements: {
+                buildings: ['campfire']
             }
         },
-
-        paid_training: {
-            name: 'Train with Expert',
-            description: 'Pay for advanced combat training',
-            duration: 15,
-            energyCost: 10,
-            cost: {
-                gold: 10
-            },
+        craft_healing_potion: {
+            name: 'Craft Healing Potion',
+            description: 'Create a basic healing potion',
+            duration: 5000,
             requirements: {
-                buildings: ['training_ground']
+                buildings: ['herbalist_hut'],
+                resources: { herbs: 5 }
             },
             skillGain: {
-                melee: 5,
-                defense: 3
+                herbalism: 2
             },
-            modifiers: (gameState) => {
-                const trainingGround = gameState.buildings.find(b => 
-                    b.type === 'training_ground');
-                return trainingGround ? trainingGround.trainingBonus * 1.5 : 1;
+            resources: {
+                herbs: -5,
+                healing_potion: 1
             }
         },
-
-        advanced_training: {
-            name: 'Advanced Combat Training',
-            description: 'Learn advanced combat techniques',
-            duration: 25,
-            energyCost: 15,
-            cost: {
-                gold: 25
-            },
+        trade: {
+            name: 'Trade with Merchants',
+            description: 'Exchange resources with traveling merchants',
+            duration: 10000,
             requirements: {
-                buildings: ['training_ground'],
-                skills: {
-                    melee: 20,
-                    defense: 15
-                }
+                buildings: ['marketplace']
             },
-            skillGain: {
-                melee: 8,
-                defense: 5,
-                armor: 2
-            }
-        },
-
-        master_training: {
-            name: 'Master Combat Training',
-            description: 'Train under a combat master',
-            duration: 40,
-            energyCost: 25,
-            cost: {
-                gold: 50
-            },
-            requirements: {
-                buildings: ['training_ground'],
-                skills: {
-                    melee: 40,
-                    defense: 30
-                }
-            },
-            skillGain: {
-                melee: 15,
-                defense: 10,
-                armor: 5
+            effect: (gameState) => {
+                gameState.addMessage('A merchant offers their wares...');
             }
         }
     };
 
     static canPerformAction(gameState, actionId) {
+        if (!gameState) return false;
+        
         const action = this.ACTIONS[actionId];
         if (!action) return false;
 
-        if (action.requirements) {
-            if (action.requirements.skills) {
-                for (const [skill, level] of Object.entries(action.requirements.skills)) {
-                    if ((gameState.skills[skill]?.level || 0) < level) return false;
+        // Check if another action is in progress
+        if (gameState.currentAction) return false;
+
+        // Check building requirements
+        if (action.requirements?.buildings) {
+            for (const building of action.requirements.buildings) {
+                if (!gameState.buildings.some(b => b.type === building)) {
+                    return false;
                 }
             }
         }
@@ -212,58 +115,71 @@ class ActionSystem {
         return true;
     }
 
-    static startAction(gameState, actionId) {
-        const action = this.ACTIONS[actionId];
+    static performAction(gameState, actionId) {
         if (!this.canPerformAction(gameState, actionId)) return false;
 
-        // Deduct energy cost immediately
-        if (action.energyCost) {
-            if (gameState.resources.energy < action.energyCost) return false;
-            gameState.resources.energy -= action.energyCost;
-        }
-
-        // Start the action
-        return gameState.startAction(actionId);
-    }
-
-    static completeAction(gameState, actionId) {
         const action = this.ACTIONS[actionId];
-        if (!action) return false;
-
-        // Add resources with modifiers
-        if (action.resources) {
-            for (const [resource, calculator] of Object.entries(action.resources)) {
-                const amount = typeof calculator === 'function' 
-                    ? calculator(gameState) 
-                    : calculator;
-                gameState.resources[resource] = (gameState.resources[resource] || 0) + amount;
-            }
-        }
-
-        // Add skill experience with modifiers
-        if (action.skillGain) {
-            const modifier = action.modifiers ? action.modifiers(gameState) : 1;
-            for (const [skill, exp] of Object.entries(action.skillGain)) {
-                SkillSystem.addExperience(gameState, skill, exp * modifier);
-            }
-        }
-
-        // Handle any special effects
-        if (action.effect) {
-            action.effect(gameState);
-        }
+        
+        gameState.currentAction = {
+            id: actionId,
+            startTime: Date.now(),
+            duration: action.duration
+        };
 
         return true;
     }
 
-    static getActionProgress(gameState, actionId) {
-        if (!gameState.currentAction || gameState.currentAction.id !== actionId) {
-            return 0;
-        }
-        return gameState.currentAction.progress;
+    static isActionInProgress(gameState, actionId) {
+        return gameState.currentAction?.id === actionId;
     }
 
-    static isActionInProgress(gameState, actionId) {
-        return gameState.currentAction && gameState.currentAction.id === actionId;
+    static getActionProgress(gameState, actionId) {
+        if (!gameState.currentAction || gameState.currentAction.id !== actionId) return 0;
+        
+        const elapsed = Date.now() - gameState.currentAction.startTime;
+        const progress = Math.min(elapsed / gameState.currentAction.duration, 1);
+        
+        if (progress >= 1) {
+            this.completeAction(gameState, gameState.currentAction);
+            return 0; // Return 0 after completion to reset progress bar
+        }
+        
+        return progress;
+    }
+
+    static completeAction(gameState, action) {
+        const actionData = this.ACTIONS[action.id];
+        
+        // Grant resources
+        if (actionData.resources) {
+            Object.entries(actionData.resources).forEach(([resource, calculator]) => {
+                const amount = typeof calculator === 'function' 
+                    ? calculator(gameState) 
+                    : calculator;
+                gameState.resources[resource] = (gameState.resources[resource] || 0) + amount;
+            });
+        }
+
+        // Grant skill experience
+        if (actionData.skillGain) {
+            Object.entries(actionData.skillGain).forEach(([skill, exp]) => {
+                if (!gameState.skills[skill]) {
+                    gameState.skills[skill] = { level: 1, exp: 0 };
+                }
+                gameState.skills[skill].exp += exp;
+                while (gameState.skills[skill].exp >= SkillSystem.getRequiredXP(gameState.skills[skill].level)) {
+                    gameState.skills[skill].level += 1;
+                    gameState.addMessage(`${skill} skill increased to level ${gameState.skills[skill].level}!`);
+                }
+            });
+        }
+
+        // Reset current action to allow new actions
+        gameState.currentAction = null;
+
+        // Force UI update for the action button
+        if (window.game && window.game.ui) {
+            window.game.ui.updateActionPanel();
+        }
     }
 } 
